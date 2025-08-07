@@ -10,6 +10,12 @@ import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
 import Invoices from "./pages/Invoices";
 import Customers from "./pages/Customers";
+import Expenses from "./pages/Expenses";
+import Vendors from "./pages/Vendors";
+import Products from "./pages/Products";
+import Accounts from "./pages/Accounts";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +38,12 @@ const App = () => (
             <Route path="/profile" element={<DashboardPage><Profile /></DashboardPage>} />
             <Route path="/invoices" element={<DashboardPage><Invoices /></DashboardPage>} />
             <Route path="/customers" element={<DashboardPage><Customers /></DashboardPage>} />
+            <Route path="/expenses" element={<DashboardPage><Expenses /></DashboardPage>} />
+            <Route path="/vendors" element={<DashboardPage><Vendors /></DashboardPage>} />
+            <Route path="/products" element={<DashboardPage><Products /></DashboardPage>} />
+            <Route path="/accounts" element={<DashboardPage><Accounts /></DashboardPage>} />
+            <Route path="/reports" element={<DashboardPage><Reports /></DashboardPage>} />
+            <Route path="/settings" element={<DashboardPage><Settings /></DashboardPage>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
