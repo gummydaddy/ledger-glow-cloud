@@ -1,16 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, Calendar, Receipt } from 'lucide-react';
+import { Plus, Search, Calendar, Receipt, Pencil, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { ExpenseFormDialog, ExpenseFormValues } from '@/components/expenses/ExpenseFormDialog';
+
+interface Expense {
+  id: string;
+  user_id: string;
+  description: string;
+  amount: number;
+  expense_date: string;
+  category: string | null;
+  payment_method: string | null;
+  vendor_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 const Expenses = () => {
-  const [expenses] = useState([]);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Expense | null>(null);
 
   const categories = [
     'Office Supplies',
@@ -30,6 +53,98 @@ const Expenses = () => {
     }).format(amount);
   };
 
+  const fetchExpenses = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('expense_date', { ascending: false });
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Failed to load expenses', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setExpenses((data || []).map((e: any) => ({ ...e, amount: Number(e.amount) })));
+  };
+
+  useEffect(() => {
+    fetchExpenses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const filtered = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return expenses.filter((e) => {
+      const matchesTerm = !term ||
+        e.description.toLowerCase().includes(term) ||
+        (e.category || '').toLowerCase().includes(term) ||
+        (e.payment_method || '').toLowerCase().includes(term);
+      const matchesCategory = categoryFilter === 'all' || (e.category || '').toLowerCase() === categoryFilter;
+      return matchesTerm && matchesCategory;
+    });
+  }, [expenses, searchTerm, categoryFilter]);
+
+  const handleCreateOrUpdate = async (values: ExpenseFormValues) => {
+    if (!user) {
+      toast({ title: 'Sign in required', description: 'Please sign in to manage expenses.', variant: 'destructive' });
+      return;
+    }
+
+    const payload = {
+      user_id: user.id,
+      description: values.description,
+      amount: values.amount,
+      total_amount: values.amount,
+      expense_date: values.expense_date,
+      category: values.category || null,
+      payment_method: values.payment_method || null,
+      vendor_id: values.vendor_id || null,
+    };
+
+    if (editing) {
+      const { error } = await supabase
+        .from('expenses')
+        .update(payload)
+        .eq('id', editing.id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Expense updated' });
+        setDialogOpen(false);
+        setEditing(null);
+        fetchExpenses();
+      }
+    } else {
+      const { error } = await supabase
+        .from('expenses')
+        .insert([payload]);
+
+      if (error) {
+        toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Expense created' });
+        setDialogOpen(false);
+        fetchExpenses();
+      }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const ok = window.confirm('Delete this expense? This cannot be undone.');
+    if (!ok) return;
+    const { error } = await supabase.from('expenses').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Expense deleted' });
+      fetchExpenses();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -39,7 +154,7 @@ const Expenses = () => {
             Track and manage your business expenses
           </p>
         </div>
-        <Button>
+        <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
           <Plus className="h-4 w-4 mr-2" />
           Add Expense
         </Button>
@@ -53,10 +168,8 @@ const Expenses = () => {
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$0.00</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+0%</span> from last month
-            </p>
+            <div className="text-2xl font-bold">{formatCurrency(filtered.reduce((s, e) => s + e.amount, 0))}</div>
+            <p className="text-xs text-muted-foreground">Estimated based on listed items</p>
           </CardContent>
         </Card>
         
@@ -66,10 +179,8 @@ const Expenses = () => {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$0.00</div>
-            <p className="text-xs text-muted-foreground">
-              Total expenses this year
-            </p>
+            <div className="text-2xl font-bold">{formatCurrency(expenses.reduce((s, e) => s + e.amount, 0))}</div>
+            <p className="text-xs text-muted-foreground">Total expenses</p>
           </CardContent>
         </Card>
         
@@ -79,10 +190,8 @@ const Expenses = () => {
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$0.00</div>
-            <p className="text-xs text-muted-foreground">
-              Monthly average
-            </p>
+            <div className="text-2xl font-bold">{formatCurrency(expenses.length ? expenses.reduce((s, e) => s + e.amount, 0) / 12 : 0)}</div>
+            <p className="text-xs text-muted-foreground">Monthly average</p>
           </CardContent>
         </Card>
       </div>
@@ -119,13 +228,15 @@ const Expenses = () => {
           </div>
         </CardHeader>
         <CardContent>
-          {expenses.length === 0 ? (
+          {loading ? (
+            <div className="text-sm text-muted-foreground py-12 text-center">Loading expenses…</div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-muted-foreground">
                 <div className="text-6xl mb-4">🧾</div>
                 <h3 className="text-lg font-medium mb-2">No expenses yet</h3>
                 <p className="text-sm mb-6">Start tracking your business expenses</p>
-                <Button>
+                <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Your First Expense
                 </Button>
@@ -141,16 +252,51 @@ const Expenses = () => {
                   <TableHead>Category</TableHead>
                   <TableHead>Payment Method</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead className="w-[140px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {/* Expense rows would be rendered here */}
+                {filtered.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell>{new Date(e.expense_date).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-medium">{e.description}</TableCell>
+                    <TableCell>{e.vendor_id ? e.vendor_id.slice(0, 8) + '…' : '-'}</TableCell>
+                    <TableCell>{e.category || '-'}</TableCell>
+                    <TableCell>{e.payment_method || '-'}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(e.amount)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" onClick={() => { setEditing(e); setDialogOpen(true); }}>
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(e.id)}>
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
+
+      <ExpenseFormDialog
+        open={dialogOpen}
+        onOpenChange={(o) => { if (!o) { setEditing(null); } setDialogOpen(o); }}
+        initialData={editing ? {
+          description: editing.description,
+          amount: editing.amount,
+          expense_date: new Date(editing.expense_date),
+          category: editing.category || '',
+          payment_method: editing.payment_method || '',
+          vendor_id: editing.vendor_id || '',
+        } : undefined}
+        onSubmit={handleCreateOrUpdate}
+      />
     </div>
   );
 };
