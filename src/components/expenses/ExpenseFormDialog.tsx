@@ -176,12 +176,12 @@ export function ExpenseFormDialog({ open, onOpenChange, initialData, onSubmit }:
                   <FormItem>
                     <FormLabel>Vendor</FormLabel>
                     <FormControl>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select value={field.value || 'none'} onValueChange={(val) => field.onChange(val === 'none' ? '' : val)}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select vendor (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
                           {vendors.map((v) => (
                             <SelectItem key={v.id} value={v.id}>{v.company_name}</SelectItem>
                           ))}
