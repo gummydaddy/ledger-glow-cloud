@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
@@ -17,12 +17,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+const ItemSchema = z.object({
+  description: z.string().min(1, "Item description is required"),
+  quantity: z.coerce.number().min(1, "Qty must be >= 1").default(1),
+  unit_price: z.coerce.number().min(0, "Unit price must be >= 0").default(0),
+  discount_percentage: z.coerce.number().min(0).max(100).default(0).optional(),
+  tax_percentage: z.coerce.number().min(0).max(100).default(0).optional(),
+});
+
 const FormSchema = z.object({
   invoice_number: z.string().min(1, "Invoice number is required"),
   customer_id: z.string().min(1, "Customer is required"),
   invoice_date: z.coerce.date().default(new Date()),
   due_date: z.coerce.date().optional(),
   status: z.enum(["draft", "sent", "paid", "overdue"]).default("draft"),
+  line_items: z.array(ItemSchema).min(1, "Add at least one item").default([
+    { description: "", quantity: 1, unit_price: 0, discount_percentage: 0, tax_percentage: 0 },
+  ]),
 });
 
 export type InvoiceFormValues = z.infer<typeof FormSchema>;
@@ -31,10 +42,11 @@ interface InvoiceFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: InvoiceFormValues;
+  invoiceId?: string;
   onSubmit: (values: InvoiceFormValues) => Promise<void> | void;
 }
 
-export function InvoiceFormDialog({ open, onOpenChange, initialData, onSubmit }: InvoiceFormDialogProps) {
+export function InvoiceFormDialog({ open, onOpenChange, initialData, invoiceId, onSubmit }: InvoiceFormDialogProps) {
   const { user } = useAuth();
   const [customers, setCustomers] = useState<{ id: string; company_name: string }[]>([]);
 
@@ -46,6 +58,7 @@ export function InvoiceFormDialog({ open, onOpenChange, initialData, onSubmit }:
       invoice_date: new Date(),
       due_date: undefined,
       status: "draft",
+      line_items: [{ description: "", quantity: 1, unit_price: 0, discount_percentage: 0, tax_percentage: 0 }],
     },
   });
 

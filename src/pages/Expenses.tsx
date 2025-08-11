@@ -19,6 +19,7 @@ interface Expense {
   category: string | null;
   payment_method: string | null;
   vendor_id: string | null;
+  receipt_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -92,6 +93,24 @@ const Expenses = () => {
       return;
     }
 
+    // Handle receipt upload if provided
+    const file = (values as any).receipt_file as File | undefined;
+    let receiptUrl = editing?.receipt_url || null;
+    if (file) {
+      const ext = file.name.split('.').pop() || 'bin';
+      const path = `${user.id}/${Date.now()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from('receipts').upload(path, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+      if (uploadErr) {
+        toast({ title: 'Upload failed', description: uploadErr.message, variant: 'destructive' });
+        return;
+      }
+      const { data: pub } = supabase.storage.from('receipts').getPublicUrl(path);
+      receiptUrl = pub.publicUrl;
+    }
+
     const payload = {
       user_id: user.id,
       description: values.description,
@@ -101,6 +120,7 @@ const Expenses = () => {
       category: values.category || null,
       payment_method: values.payment_method || null,
       vendor_id: values.vendor_id || null,
+      receipt_url: receiptUrl,
     };
 
     if (editing) {
@@ -251,6 +271,7 @@ const Expenses = () => {
                   <TableHead>Vendor</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Payment Method</TableHead>
+                  <TableHead>Receipt</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="w-[140px] text-right">Actions</TableHead>
                 </TableRow>
@@ -263,6 +284,11 @@ const Expenses = () => {
                     <TableCell>{e.vendor_id ? e.vendor_id.slice(0, 8) + '…' : '-'}</TableCell>
                     <TableCell>{e.category || '-'}</TableCell>
                     <TableCell>{e.payment_method || '-'}</TableCell>
+                    <TableCell>{e.receipt_url ? (
+                      <a href={e.receipt_url} target="_blank" rel="noopener noreferrer" className="underline">View</a>
+                    ) : (
+                      '-' 
+                    )}</TableCell>
                     <TableCell className="text-right">{formatCurrency(e.amount)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

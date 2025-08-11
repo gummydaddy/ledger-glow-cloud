@@ -24,6 +24,7 @@ const FormSchema = z.object({
   category: z.string().optional().or(z.literal("")),
   payment_method: z.string().optional().or(z.literal("")),
   vendor_id: z.string().optional().or(z.literal("")),
+  receipt_file: z.any().optional(),
 });
 
 export type ExpenseFormValues = z.infer<typeof FormSchema>;
@@ -193,6 +194,20 @@ export function ExpenseFormDialog({ open, onOpenChange, initialData, onSubmit }:
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="receipt_file"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Receipt (optional)</FormLabel>
+                  <FormControl>
+                    <Input type="file" accept="image/*,application/pdf" onChange={(e) => field.onChange(e.target.files?.[0])} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
