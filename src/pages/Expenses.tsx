@@ -97,7 +97,7 @@ const Expenses = () => {
       description: values.description,
       amount: values.amount,
       total_amount: values.amount,
-      expense_date: values.expense_date,
+      expense_date: typeof values.expense_date === 'string' ? values.expense_date : values.expense_date?.toISOString().split('T')[0],
       category: values.category || null,
       payment_method: values.payment_method || null,
       vendor_id: values.vendor_id || null,

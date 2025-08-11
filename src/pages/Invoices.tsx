@@ -89,8 +89,8 @@ const Invoices = () => {
       user_id: user.id,
       invoice_number: values.invoice_number,
       customer_id: values.customer_id,
-      invoice_date: values.invoice_date,
-      due_date: values.due_date || null,
+      invoice_date: typeof values.invoice_date === 'string' ? values.invoice_date : values.invoice_date?.toISOString().split('T')[0],
+      due_date: values.due_date ? (typeof values.due_date === 'string' ? values.due_date : values.due_date.toISOString().split('T')[0]) : null,
       status: values.status,
     };
 
