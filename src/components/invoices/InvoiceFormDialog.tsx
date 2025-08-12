@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Dialog,
@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-
+import { LineItemsEditor } from "@/components/invoices/LineItemsEditor";
 const ItemSchema = z.object({
   description: z.string().min(1, "Item description is required"),
   quantity: z.coerce.number().min(1, "Qty must be >= 1").default(1),
@@ -83,6 +83,7 @@ export function InvoiceFormDialog({ open, onOpenChange, initialData, invoiceId, 
           invoice_date: new Date(),
           due_date: undefined,
           status: "draft",
+          line_items: [{ description: "", quantity: 1, unit_price: 0, discount_percentage: 0, tax_percentage: 0 }],
         }
       );
     }
@@ -198,6 +199,8 @@ export function InvoiceFormDialog({ open, onOpenChange, initialData, invoiceId, 
                 )}
               />
             </div>
+
+            <LineItemsEditor />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
