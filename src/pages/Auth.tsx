@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { cleanupAuthState } from '@/lib/authCleanup';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -24,14 +25,6 @@ const Auth = () => {
       navigate('/');
     }
   }, [user, navigate]);
-
-  const cleanupAuthState = () => {
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-        localStorage.removeItem(key);
-      }
-    });
-  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

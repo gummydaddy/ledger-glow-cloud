@@ -32,6 +32,7 @@ const Invoices = () => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Invoice | null>(null);
+  const [editingValues, setEditingValues] = useState<InvoiceFormValues | undefined>(undefined);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -69,6 +70,35 @@ const Invoices = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  const startEdit = async (inv: Invoice) => {
+    if (!user) return;
+    // Fetch existing line items for this invoice to prefill the form
+    const { data: items, error } = await supabase
+      .from('invoice_items')
+      .select('description, quantity, unit_price, discount_percentage, tax_percentage')
+      .eq('invoice_id', inv.id);
+    if (error) {
+      toast({ title: 'Failed to load items', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setEditing(inv);
+    setEditingValues({
+      invoice_number: inv.invoice_number,
+      customer_id: inv.customer_id,
+      invoice_date: new Date(inv.invoice_date),
+      due_date: inv.due_date ? new Date(inv.due_date) : undefined,
+      status: (inv.status as any) || 'draft',
+      line_items: (items || []).map((it) => ({
+        description: it.description as any,
+        quantity: Number(it.quantity || 1) as any,
+        unit_price: Number(it.unit_price || 0) as any,
+        discount_percentage: Number(it.discount_percentage || 0) as any,
+        tax_percentage: Number(it.tax_percentage || 0) as any,
+      })),
+    });
+    setDialogOpen(true);
+  };
+
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return invoices.filter((i) => {
@@ -85,42 +115,136 @@ const Invoices = () => {
       return;
     }
 
-    const payload = {
+    // Compute totals from line items
+    const items = values.line_items || [];
+    let subtotal = 0;
+    let discount_amount = 0;
+    let tax_amount = 0;
+    let total_amount = 0;
+
+    items.forEach((it) => {
+      const qty = Number(it.quantity || 0);
+      const price = Number(it.unit_price || 0);
+      const discP = Number(it.discount_percentage || 0) / 100;
+      const taxP = Number(it.tax_percentage || 0) / 100;
+      const base = qty * price;
+      const disc = base * discP;
+      const afterDisc = base - disc;
+      const tax = afterDisc * taxP;
+      const lineTotal = afterDisc + tax;
+      subtotal += base;
+      discount_amount += disc;
+      tax_amount += tax;
+      total_amount += lineTotal;
+    });
+
+    const header = {
       user_id: user.id,
       invoice_number: values.invoice_number,
       customer_id: values.customer_id,
-      invoice_date: typeof values.invoice_date === 'string' ? values.invoice_date : values.invoice_date?.toISOString().split('T')[0],
-      due_date: values.due_date ? (typeof values.due_date === 'string' ? values.due_date : values.due_date.toISOString().split('T')[0]) : null,
+      invoice_date:
+        typeof values.invoice_date === 'string'
+          ? values.invoice_date
+          : values.invoice_date?.toISOString().split('T')[0],
+      due_date: values.due_date
+        ? typeof values.due_date === 'string'
+          ? values.due_date
+          : values.due_date.toISOString().split('T')[0]
+        : null,
       status: values.status,
-    };
+      subtotal,
+      discount_amount,
+      tax_amount,
+      total_amount,
+      balance_due: total_amount, // paid_amount defaults to 0
+    } as const;
 
     if (editing) {
-      const { error } = await supabase
+      // Update invoice header
+      const { error: upErr } = await supabase
         .from('invoices')
-        .update(payload)
+        .update(header)
         .eq('id', editing.id)
         .eq('user_id', user.id);
-
-      if (error) {
-        toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Invoice updated' });
-        setDialogOpen(false);
-        setEditing(null);
-        fetchInvoices();
+      if (upErr) {
+        toast({ title: 'Update failed', description: upErr.message, variant: 'destructive' });
+        return;
       }
+      // Remove existing items then insert new
+      const { error: delErr } = await supabase.from('invoice_items').delete().eq('invoice_id', editing.id);
+      if (delErr) {
+        toast({ title: 'Items cleanup failed', description: delErr.message, variant: 'destructive' });
+        return;
+      }
+      const toInsert = items.map((it) => {
+        const qty = Number(it.quantity || 0);
+        const price = Number(it.unit_price || 0);
+        const discP = Number(it.discount_percentage || 0) / 100;
+        const taxP = Number(it.tax_percentage || 0) / 100;
+        const base = qty * price;
+        const disc = base * discP;
+        const afterDisc = base - disc;
+        const tax = afterDisc * taxP;
+        const line_total = afterDisc + tax;
+        return {
+          invoice_id: editing.id,
+          description: it.description,
+          quantity: qty,
+          unit_price: price,
+          discount_percentage: Number(it.discount_percentage || 0),
+          tax_percentage: Number(it.tax_percentage || 0),
+          line_total,
+        };
+      });
+      const { error: insErr } = await supabase.from('invoice_items').insert(toInsert);
+      if (insErr) {
+        toast({ title: 'Saving items failed', description: insErr.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Invoice updated' });
+      setDialogOpen(false);
+      setEditing(null);
+      setEditingValues(undefined);
+      fetchInvoices();
     } else {
-      const { error } = await supabase
+      // Create invoice and items
+      const { data: created, error: createErr } = await supabase
         .from('invoices')
-        .insert([payload]);
-
-      if (error) {
-        toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Invoice created' });
-        setDialogOpen(false);
-        fetchInvoices();
+        .insert([header])
+        .select('*')
+        .single();
+      if (createErr || !created) {
+        toast({ title: 'Create failed', description: createErr?.message || 'Unknown error', variant: 'destructive' });
+        return;
       }
+      const toInsert = items.map((it) => {
+        const qty = Number(it.quantity || 0);
+        const price = Number(it.unit_price || 0);
+        const discP = Number(it.discount_percentage || 0) / 100;
+        const taxP = Number(it.tax_percentage || 0) / 100;
+        const base = qty * price;
+        const disc = base * discP;
+        const afterDisc = base - disc;
+        const tax = afterDisc * taxP;
+        const line_total = afterDisc + tax;
+        return {
+          invoice_id: created.id,
+          description: it.description,
+          quantity: qty,
+          unit_price: price,
+          discount_percentage: Number(it.discount_percentage || 0),
+          tax_percentage: Number(it.tax_percentage || 0),
+          line_total,
+        };
+      });
+      const { error: itemsErr } = await supabase.from('invoice_items').insert(toInsert);
+      if (itemsErr) {
+        toast({ title: 'Saving items failed', description: itemsErr.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Invoice created' });
+      setDialogOpen(false);
+      fetchInvoices();
     }
   };
 
@@ -145,7 +269,7 @@ const Invoices = () => {
             Manage your customer invoices
           </p>
         </div>
-        <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
+        <Button onClick={() => { setEditing(null); setEditingValues(undefined); setDialogOpen(true); }}>
           <Plus className="h-4 w-4 mr-2" />
           Create Invoice
         </Button>
@@ -178,7 +302,7 @@ const Invoices = () => {
                 <div className="text-6xl mb-4">📄</div>
                 <h3 className="text-lg font-medium mb-2">No invoices yet</h3>
                 <p className="text-sm mb-6">Get started by creating your first invoice</p>
-                <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
+                <Button onClick={() => { setEditing(null); setEditingValues(undefined); setDialogOpen(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Invoice
                 </Button>
@@ -212,7 +336,7 @@ const Invoices = () => {
                     <TableCell className="text-right">${Number(i.total_amount || 0).toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={() => { setEditing(i); setDialogOpen(true); }}>
+                        <Button variant="outline" size="sm" onClick={() => startEdit(i)}>
                           <Pencil className="h-4 w-4" />
                           Edit
                         </Button>
@@ -232,14 +356,9 @@ const Invoices = () => {
 
       <InvoiceFormDialog
         open={dialogOpen}
-        onOpenChange={(o) => { if (!o) { setEditing(null); } setDialogOpen(o); }}
-        initialData={editing ? {
-          invoice_number: editing.invoice_number,
-          customer_id: editing.customer_id,
-          invoice_date: new Date(editing.invoice_date),
-          due_date: editing.due_date ? new Date(editing.due_date) : undefined,
-          status: (editing.status as any) || 'draft',
-        } : undefined}
+        onOpenChange={(o) => { if (!o) { setEditing(null); setEditingValues(undefined); } setDialogOpen(o); }}
+        initialData={editingValues}
+        invoiceId={editing?.id}
         onSubmit={handleCreateOrUpdate}
       />
     </div>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cleanupAuthState } from "@/lib/authCleanup";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -17,15 +18,13 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
-      if (error) throw error;
-      
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-          localStorage.removeItem(key);
-        }
-      });
-      
+      // Clean up local/session storage first
+      cleanupAuthState();
+      // Attempt global sign out, ignore failures
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch {}
+      // Force full redirect to clear any in-memory state
       window.location.href = '/auth';
     } catch (error: any) {
       toast({
