@@ -8,7 +8,8 @@ import {
   CreditCard, 
   BarChart3, 
   Settings,
-  User
+  User,
+  Shield
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -22,6 +23,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useUserRoles } from "@/hooks/useUserRoles";
 
 const navigation = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -39,10 +41,15 @@ const secondaryNavigation = [
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
+const adminNavigation = [
+  { title: "User Management", url: "/users", icon: Shield },
+];
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
+  const { isAdmin } = useUserRoles();
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -105,6 +112,31 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>
+              {state !== "collapsed" && "Administration"}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminNavigation.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink 
+                        to={item.url} 
+                        className={getNavCls(item.url)}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {state !== "collapsed" && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
