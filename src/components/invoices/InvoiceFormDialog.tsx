@@ -13,7 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { LineItemsEditor } from "@/components/invoices/LineItemsEditor";
@@ -31,6 +32,10 @@ const FormSchema = z.object({
   invoice_date: z.coerce.date().default(new Date()),
   due_date: z.coerce.date().optional(),
   status: z.enum(["draft", "sent", "paid", "overdue"]).default("draft"),
+  is_recurring: z.boolean().default(false),
+  recurrence_frequency: z.enum(["weekly", "monthly", "quarterly", "yearly"]).optional(),
+  recurrence_start_date: z.coerce.date().optional(),
+  recurrence_end_date: z.coerce.date().optional(),
   line_items: z.array(ItemSchema).min(1, "Add at least one item").default([
     { description: "", quantity: 1, unit_price: 0, discount_percentage: 0, tax_percentage: 0 },
   ]),
@@ -58,9 +63,15 @@ export function InvoiceFormDialog({ open, onOpenChange, initialData, invoiceId, 
       invoice_date: new Date(),
       due_date: undefined,
       status: "draft",
+      is_recurring: false,
+      recurrence_frequency: undefined,
+      recurrence_start_date: undefined,
+      recurrence_end_date: undefined,
       line_items: [{ description: "", quantity: 1, unit_price: 0, discount_percentage: 0, tax_percentage: 0 }],
     },
   });
+
+  const isRecurring = form.watch("is_recurring");
 
   useEffect(() => {
     if (!open || !user) return;
@@ -83,6 +94,10 @@ export function InvoiceFormDialog({ open, onOpenChange, initialData, invoiceId, 
           invoice_date: new Date(),
           due_date: undefined,
           status: "draft",
+          is_recurring: false,
+          recurrence_frequency: undefined,
+          recurrence_start_date: undefined,
+          recurrence_end_date: undefined,
           line_items: [{ description: "", quantity: 1, unit_price: 0, discount_percentage: 0, tax_percentage: 0 }],
         }
       );
@@ -199,6 +214,88 @@ export function InvoiceFormDialog({ open, onOpenChange, initialData, invoiceId, 
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="is_recurring"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Recurring Invoice</FormLabel>
+                    <FormDescription>
+                      Automatically generate this invoice on a schedule
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {isRecurring && (
+              <div className="space-y-4 border rounded-lg p-4 bg-muted/50">
+                <FormField
+                  control={form.control}
+                  name="recurrence_frequency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Frequency</FormLabel>
+                      <FormControl>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                            <SelectItem value="quarterly">Quarterly</SelectItem>
+                            <SelectItem value="yearly">Yearly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="recurrence_start_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start Date</FormLabel>
+                        <FormControl>
+                          <Input type="date" value={field.value ? new Date(field.value).toISOString().slice(0, 10) : ""} onChange={(e) => field.onChange(new Date(e.target.value))} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="recurrence_end_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>End Date (Optional)</FormLabel>
+                        <FormControl>
+                          <Input type="date" value={field.value ? new Date(field.value).toISOString().slice(0, 10) : ""} onChange={(e) => field.onChange(new Date(e.target.value))} />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Leave empty for no end date
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
 
             <LineItemsEditor />
 

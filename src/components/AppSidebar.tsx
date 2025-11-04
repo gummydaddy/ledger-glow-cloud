@@ -9,7 +9,8 @@ import {
   BarChart3, 
   Settings,
   User,
-  Shield
+  Shield,
+  ShoppingCart
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -32,6 +33,7 @@ const navigation = [
   { title: "Customers", url: "/customers", icon: Users },
   { title: "Vendors", url: "/vendors", icon: Building2 },
   { title: "Products", url: "/products", icon: Package },
+  { title: "Purchase Orders", url: "/purchase-orders", icon: ShoppingCart },
   { title: "Accounts", url: "/accounts", icon: CreditCard },
   { title: "Reports", url: "/reports", icon: BarChart3 },
 ];

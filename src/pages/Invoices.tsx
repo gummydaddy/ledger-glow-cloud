@@ -88,6 +88,10 @@ const Invoices = () => {
       invoice_date: new Date(inv.invoice_date),
       due_date: inv.due_date ? new Date(inv.due_date) : undefined,
       status: (inv.status as any) || 'draft',
+      is_recurring: (inv as any).is_recurring || false,
+      recurrence_frequency: (inv as any).recurrence_frequency as any,
+      recurrence_start_date: (inv as any).recurrence_start_date ? new Date((inv as any).recurrence_start_date) : undefined,
+      recurrence_end_date: (inv as any).recurrence_end_date ? new Date((inv as any).recurrence_end_date) : undefined,
       line_items: (items || []).map((it) => ({
         description: it.description as any,
         quantity: Number(it.quantity || 1) as any,
@@ -152,6 +156,23 @@ const Invoices = () => {
           : values.due_date.toISOString().split('T')[0]
         : null,
       status: values.status,
+      is_recurring: values.is_recurring || false,
+      recurrence_frequency: values.recurrence_frequency || null,
+      recurrence_start_date: values.recurrence_start_date
+        ? (typeof values.recurrence_start_date === 'string'
+          ? values.recurrence_start_date
+          : values.recurrence_start_date.toISOString().split('T')[0])
+        : null,
+      recurrence_end_date: values.recurrence_end_date
+        ? (typeof values.recurrence_end_date === 'string'
+          ? values.recurrence_end_date
+          : values.recurrence_end_date.toISOString().split('T')[0])
+        : null,
+      next_recurrence_date: values.is_recurring && values.recurrence_start_date
+        ? (typeof values.recurrence_start_date === 'string'
+          ? values.recurrence_start_date
+          : values.recurrence_start_date.toISOString().split('T')[0])
+        : null,
       subtotal,
       discount_amount,
       tax_amount,

@@ -254,8 +254,14 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_number: string
+          is_recurring: boolean | null
+          next_recurrence_date: string | null
           notes: string | null
           paid_amount: number | null
+          parent_invoice_id: string | null
+          recurrence_end_date: string | null
+          recurrence_frequency: string | null
+          recurrence_start_date: string | null
           status: string | null
           subtotal: number | null
           tax_amount: number | null
@@ -273,8 +279,14 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_number: string
+          is_recurring?: boolean | null
+          next_recurrence_date?: string | null
           notes?: string | null
           paid_amount?: number | null
+          parent_invoice_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_frequency?: string | null
+          recurrence_start_date?: string | null
           status?: string | null
           subtotal?: number | null
           tax_amount?: number | null
@@ -292,8 +304,14 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_number?: string
+          is_recurring?: boolean | null
+          next_recurrence_date?: string | null
           notes?: string | null
           paid_amount?: number | null
+          parent_invoice_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_frequency?: string | null
+          recurrence_start_date?: string | null
           status?: string | null
           subtotal?: number | null
           tax_amount?: number | null
@@ -308,6 +326,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_parent_invoice_id_fkey"
+            columns: ["parent_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -401,6 +426,116 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      purchase_order_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          line_total: number
+          product_id: string | null
+          purchase_order_id: string
+          quantity: number
+          received_quantity: number | null
+          tax_percentage: number | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          line_total?: number
+          product_id?: string | null
+          purchase_order_id: string
+          quantity?: number
+          received_quantity?: number | null
+          tax_percentage?: number | null
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          line_total?: number
+          product_id?: string | null
+          purchase_order_id?: string
+          quantity?: number
+          received_quantity?: number | null
+          tax_percentage?: number | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          expected_delivery_date: string | null
+          id: string
+          notes: string | null
+          order_date: string
+          po_number: string
+          status: string | null
+          subtotal: number | null
+          tax_amount: number | null
+          total_amount: number
+          updated_at: string
+          user_id: string
+          vendor_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          expected_delivery_date?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          po_number: string
+          status?: string | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+          vendor_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          expected_delivery_date?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          po_number?: string
+          status?: string | null
+          subtotal?: number | null
+          tax_amount?: number | null
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
