@@ -58,6 +58,42 @@ export type Database = {
           },
         ]
       }
+      currency_settings: {
+        Row: {
+          base_currency: string
+          created_at: string
+          decimal_places: number | null
+          decimal_separator: string | null
+          display_symbol: boolean | null
+          id: string
+          thousand_separator: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_currency?: string
+          created_at?: string
+          decimal_places?: number | null
+          decimal_separator?: string | null
+          display_symbol?: boolean | null
+          id?: string
+          thousand_separator?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_currency?: string
+          created_at?: string
+          decimal_places?: number | null
+          decimal_separator?: string | null
+          display_symbol?: boolean | null
+          id?: string
+          thousand_separator?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -121,6 +157,7 @@ export type Database = {
           amount: number
           category: string | null
           created_at: string
+          currency: string | null
           description: string
           expense_date: string
           expense_number: string | null
@@ -140,6 +177,7 @@ export type Database = {
           amount?: number
           category?: string | null
           created_at?: string
+          currency?: string | null
           description: string
           expense_date?: string
           expense_number?: string | null
@@ -159,6 +197,7 @@ export type Database = {
           amount?: number
           category?: string | null
           created_at?: string
+          currency?: string | null
           description?: string
           expense_date?: string
           expense_number?: string | null
@@ -248,6 +287,7 @@ export type Database = {
         Row: {
           balance_due: number | null
           created_at: string
+          currency: string | null
           customer_id: string
           discount_amount: number | null
           due_date: string | null
@@ -273,6 +313,7 @@ export type Database = {
         Insert: {
           balance_due?: number | null
           created_at?: string
+          currency?: string | null
           customer_id: string
           discount_amount?: number | null
           due_date?: string | null
@@ -298,6 +339,7 @@ export type Database = {
         Update: {
           balance_due?: number | null
           created_at?: string
+          currency?: string | null
           customer_id?: string
           discount_amount?: number | null
           due_date?: string | null
@@ -484,6 +526,7 @@ export type Database = {
       purchase_orders: {
         Row: {
           created_at: string
+          currency: string | null
           expected_delivery_date: string | null
           id: string
           notes: string | null
@@ -499,6 +542,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          currency?: string | null
           expected_delivery_date?: string | null
           id?: string
           notes?: string | null
@@ -514,6 +558,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          currency?: string | null
           expected_delivery_date?: string | null
           id?: string
           notes?: string | null
@@ -536,6 +581,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      supported_currencies: {
+        Row: {
+          code: string
+          is_active: boolean | null
+          name: string
+          symbol: string
+        }
+        Insert: {
+          code: string
+          is_active?: boolean | null
+          name: string
+          symbol: string
+        }
+        Update: {
+          code?: string
+          is_active?: boolean | null
+          name?: string
+          symbol?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
